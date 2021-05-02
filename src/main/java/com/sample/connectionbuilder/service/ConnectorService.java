@@ -2,7 +2,9 @@ package com.sample.connectionbuilder.service;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -28,13 +30,19 @@ public class ConnectorService {
 		flightToJFK = repository.getFlightsBetween("DXB", to.toUpperCase());
 
 		for (flight_schedule flightsBOM : flightFromBOM) {
-			SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
-			Date arr_time = new SimpleDateFormat("HH:mm").parse(flightsBOM.getArr_time());
-			for(flight_schedule flightsJFK : flightToJFK) {
-				Date dept_time = new SimpleDateFormat("HH:mm").parse(flightsJFK.getDept_time());
+			Date arr_time = getFlightTime(flightsBOM.getArr_time());
+			for (flight_schedule flightsJFK : flightToJFK) {
+				Date dept_time = getFlightTime(flightsJFK.getDept_time());
 				long difference_In_Time = dept_time.getTime() - arr_time.getTime();
+				if (difference_In_Time < 0) {
+					Calendar newTime = Calendar.getInstance();
+					newTime.setTime(dept_time);
+					newTime.add(Calendar.DATE, 1);
+					dept_time = newTime.getTime();
+					difference_In_Time = dept_time.getTime() - arr_time.getTime();
+				}
 				long difference_In_Hours = (difference_In_Time / (1000 * 60 * 60)) % 24;
-				if(difference_In_Hours  >= 2 && difference_In_Hours <= 8) {
+				if (difference_In_Hours >= 2 && difference_In_Hours <= 8) {
 					connectionList.add(getFlightModel(flightsBOM, flightsJFK));
 				}
 			}
@@ -42,6 +50,15 @@ public class ConnectorService {
 		FlightResponse response = new FlightResponse();
 		response.setConnetionData(connectionList);
 		return response;
+	}
+
+	private Date getFlightTime(String time) {
+		Calendar cal = Calendar.getInstance();
+		String[] timings = time.split(":");
+		cal.set(Calendar.HOUR_OF_DAY, Integer.valueOf(timings[0]));
+		cal.set(Calendar.MINUTE, Integer.valueOf(timings[1]));
+		Date retrunTime = cal.getTime();
+		return retrunTime;
 	}
 
 	private ConnectionData getFlightModel(flight_schedule flightsBOM, flight_schedule flightsJFK) {
